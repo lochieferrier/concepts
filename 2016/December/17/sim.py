@@ -19,17 +19,21 @@ n_0 = Variable('n_0',0.3,'-','Whole chain propulsion efficiency')
 # Masses
 m_payload = Variable('m_payload',1,'kg','payload (max requirement)')
 m_fuel = Variable('m_fuel','kg','full fuel mass')
-
+rho_fuel = Variable('rho_fuel',1137.1,'kg/m^3','density of fuel (nitromethane)')
 m_limit = Variable('m_limit',5,'kg','max mass')
+V_fuel = Variable('V_fuel','m^3','Volume of fuel tank')
+
 # Weights
 W_i = Variable('W_i','N','Total weight on mission takeoff')
 W_f = Variable('W_f','N','Final weight, mission end')
 
-theta_fuel = m_fuel*g/W_f
+
 
 V_wind = Variable('V_wind',20,'m/s','Worst case wind')
 
 constraints = [
+	theta_fuel == m_fuel*g/W_f,
+	V_fuel == m_fuel/rho_fuel,
 	z >= (g*R*D)/(h_fuel*n_0*L),
 	theta_fuel >= z + (z**2)/2 + (z**3)/6 + (z**4)/24,
 	L >= W_i,
@@ -88,7 +92,7 @@ W_eng = Variable('W_eng',3.711*0.647,'N','Weight of engine')
 # Propeller model
 k_t = Variable('k_t',0.07,'-','Propeller thrust coefficient')
 C_p = Variable('C_p',0.07,'-','Propeller power coefficient')
-prop_diam = Variable('prop_diam',0.15,'m','Diameter of propeller')
+prop_diam = Variable('prop_diam',0.2,'m','Diameter of propeller')
 n = Variable('n','1/s','Revolutions per second for propeller')
 T = Variable('T','N','Prop thrust')
 constraints+=[
@@ -201,3 +205,7 @@ print(sol(A_v))
 print(sol(b_v))
 print(sol(c_v))
 print(sol(S_v))
+print('fuel')
+print(sol(V_fuel))
+tankCrossA = 0.15*0.12;
+print(sol(V_fuel)/tankCrossA)

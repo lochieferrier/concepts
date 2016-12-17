@@ -1,0 +1,15 @@
+...Mass Properties...
+1 Num Comps
+1 Total Num Meshes
+448 Total Num Tris
+
+0.118970             Total Mass
+0.243363 0.000000 0.016984       Center of Gravity
+0.000605 0.000701 0.000621       Ixx, Iyy, Izz
+-0.000000 -0.000000 0.000000       Ixy, Ixz, Iyz
+0.002772             Volume
+
+Name	Mass	cgX	cgY	cgZ	Ixx	Iyy	Izz	Ixy	Ixz	Iyz	Volume
+tank	0.118970	0.243363	0.000000	0.016984	0.000605	0.000701	0.000621	-0.000000	-0.000000	0.000000	0.002772
+Name	Mass	cgX	cgY	cgZ	Ixx	Iyy	Izz	Ixy	Ixz	Iyz	Volume
+Totals	0.118970	0.243363	0.000000	0.016984	0.000605	0.000701	0.000621	-0.000000	-0.000000	0.000000	0.002772
