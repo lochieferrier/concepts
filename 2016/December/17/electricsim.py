@@ -3,7 +3,7 @@ import numpy as np
 import gpkit
 
 z = Variable('z','-','Breguet range parameter')
-theta_fuel = Variable('theta_fuel','-','Fuel fraction W_fuel/W_zfw')
+theta_batt = Variable('theta_batt','-','batt fraction W_batt/W_zfw')
 g = Variable('g',3.711,'m/s/s','Surface gravity on Mars')
 rho = Variable('rho',0.02,'kg/m^3','Surface air density')
 mu = Variable("\\mu", 1.08e-5, "kg/m/s", "viscosity of air")
@@ -13,15 +13,15 @@ Vmin = Variable('Vmin','m/s','Landing velocity')
 R = Variable('R','m','Maximum theoretical range')
 L = Variable('L','N','Total lift in cruise')
 D = Variable('D','N','Total drag in cruise')
-h_fuel =  Variable('h_fuel',0.72e6,'J/kg','Fuel heating value') #Lipo (just the methane)
+h_batt =  Variable('h_batt',0.72e6,'J/kg','batt heating value') #Lipo (just the methane)
 n_0 = Variable('n_0',0.8,'-','Whole chain propulsion efficiency')
 
 # Masses
 m_payload = Variable('m_payload',1,'kg','payload (max requirement)')
-m_fuel = Variable('m_fuel','kg','full fuel mass')
-rho_fuel = Variable('rho_fuel',2500,'kg/m^3','density of fuel (lipo)')
+m_batt = Variable('m_batt','kg','full batt mass')
+rho_batt = Variable('rho_batt',2500,'kg/m^3','density of batt (lipo)')
 m_limit = Variable('m_limit',6,'kg','max mass')
-V_fuel = Variable('V_fuel','m^3','Volume of fuel tank')
+V_batt = Variable('V_batt','m^3','Volume of batt tank')
 
 # Weights
 W_i = Variable('W_i','N','Total weight on mission takeoff')
@@ -30,14 +30,14 @@ W_f = Variable('W_f','N','Final weight, mission end')
 V_wind = Variable('V_wind',20,'m/s','Worst case wind')
 
 constraints = [
-	theta_fuel == m_fuel*g/W_f,
-	V_fuel == m_fuel/rho_fuel,
-	R <= h_fuel*n_0*theta_fuel*(1/g)*L/D,
-	# z >= (g*R*D)/(h_fuel*n_0*L),
-	# theta_fuel >= z + (z**2)/2 + (z**3)/6 + (z**4)/24,
+	theta_batt == m_batt*g/W_f,
+	V_batt == m_batt/rho_batt,
+	R <= h_batt*n_0*theta_batt*(1/g)*L/D,
+	# z >= (g*R*D)/(h_batt*n_0*L),
+	# theta_batt >= z + (z**2)/2 + (z**3)/6 + (z**4)/24,
 	L >= W_i,
 	# L/D <= 17,
-	# m_fuel >= theta_fuel*W_f/g,
+	# m_batt >= theta_batt*W_f/g,
 ]
 
 # Wing
@@ -69,7 +69,7 @@ W_w_strc = W_W_coeff1*(N_ult*A**1.5*(W_0*W_i*S)**0.5)/tau
 W_w_surf = W_W_coeff2 * S
 
 constraints += [
-	W_0 >= g*(m_payload+m_fuel),
+	W_0 >= g*(m_payload+m_batt),
 	W_w >= W_w_surf + W_w_strc
 ]
 
@@ -85,7 +85,7 @@ c = b/A
 # https://hobbyking.com/en_us/turnigy-ca80-160kv-brushless-outrunner-50-80cc-eq.html
 P = Variable('P','W','Engine cruise power')
 P_max = Variable('P_max',10000,'W','Engine max power')
-# PSFC = Variable('PSFC','kg/s/W','Engine specific fuel consumption') Covered by n_0
+# PSFC = Variable('PSFC','kg/s/W','Engine specific batt consumption') Covered by n_0
 SpecificP_max = Variable('SpecificP_max',5000,'W/kg','Engine maximum specific power')
 W_eng = Variable('W_eng',3.711*1.545,'N','Weight of engine')
 
@@ -178,8 +178,8 @@ constraints+=[
 
 # All weights
 constraints += [
-	W_i >= W_b + W_h + W_v+ W_fuse + W_w + W_eng + g*(m_payload + m_fuel),
-	W_f >= W_b + W_h + W_v + W_fuse + W_w + W_eng + g*(m_payload + m_fuel),
+	W_i >= W_b + W_h + W_v+ W_fuse + W_w + W_eng + g*(m_payload + m_batt),
+	W_f >= W_b + W_h + W_v + W_fuse + W_w + W_eng + g*(m_payload + m_batt),
 	# (m_struc*g)/W_i >= 0.7,
 	# (m_struc*g) <= m_limit*g
 ]
@@ -205,7 +205,7 @@ print(sol(A_v))
 print(sol(b_v))
 print(sol(c_v))
 print(sol(S_v))
-print('fuel')
-print(sol(V_fuel))
+print('batt')
+print(sol(V_batt))
 tankCrossA = 0.15*0.12;
-print(sol(V_fuel)/tankCrossA)
+print(sol(V_batt)/tankCrossA)
