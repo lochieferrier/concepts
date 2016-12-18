@@ -13,29 +13,28 @@ Vmin = Variable('Vmin','m/s','Landing velocity')
 R = Variable('R','m','Maximum theoretical range')
 L = Variable('L','N','Total lift in cruise')
 D = Variable('D','N','Total drag in cruise')
-h_fuel =  Variable('h_fuel',5.55e7,'J/kg','Fuel heating value') #Nitromethane (just the methane)
-n_0 = Variable('n_0',0.3,'-','Whole chain propulsion efficiency')
+h_fuel =  Variable('h_fuel',0.72e6,'J/kg','Fuel heating value') #Lipo (just the methane)
+n_0 = Variable('n_0',0.8,'-','Whole chain propulsion efficiency')
 
 # Masses
 m_payload = Variable('m_payload',1,'kg','payload (max requirement)')
 m_fuel = Variable('m_fuel','kg','full fuel mass')
-rho_fuel = Variable('rho_fuel',1137.1,'kg/m^3','density of fuel (nitromethane)')
-m_limit = Variable('m_limit',5,'kg','max mass')
+rho_fuel = Variable('rho_fuel',2500,'kg/m^3','density of fuel (lipo)')
+m_limit = Variable('m_limit',6,'kg','max mass')
 V_fuel = Variable('V_fuel','m^3','Volume of fuel tank')
 
 # Weights
 W_i = Variable('W_i','N','Total weight on mission takeoff')
 W_f = Variable('W_f','N','Final weight, mission end')
 
-
-
 V_wind = Variable('V_wind',20,'m/s','Worst case wind')
 
 constraints = [
 	theta_fuel == m_fuel*g/W_f,
 	V_fuel == m_fuel/rho_fuel,
-	z >= (g*R*D)/(h_fuel*n_0*L),
-	theta_fuel >= z + (z**2)/2 + (z**3)/6 + (z**4)/24,
+	R <= h_fuel*n_0*theta_fuel*(1/g)*L/D,
+	# z >= (g*R*D)/(h_fuel*n_0*L),
+	# theta_fuel >= z + (z**2)/2 + (z**3)/6 + (z**4)/24,
 	L >= W_i,
 	# L/D <= 17,
 	# m_fuel >= theta_fuel*W_f/g,
@@ -82,12 +81,13 @@ b = Variable("b","m","span")
 b = (S*A)**0.5
 c = b/A
 # Engine propulsion model
-# Select to OS 120AX
+# Fix to turnigy ca80
+# https://hobbyking.com/en_us/turnigy-ca80-160kv-brushless-outrunner-50-80cc-eq.html
 P = Variable('P','W','Engine cruise power')
-P_max = Variable('P_max',2311.67,'W','Engine max power')
+P_max = Variable('P_max',10000,'W','Engine max power')
 # PSFC = Variable('PSFC','kg/s/W','Engine specific fuel consumption') Covered by n_0
-SpecificP_max = Variable('SpecificP_max',2600,'W/kg','Engine maximum specific power')
-W_eng = Variable('W_eng',3.711*0.647,'N','Weight of engine')
+SpecificP_max = Variable('SpecificP_max',5000,'W/kg','Engine maximum specific power')
+W_eng = Variable('W_eng',3.711*1.545,'N','Weight of engine')
 
 # Propeller model
 k_t = Variable('k_t',0.07,'-','Propeller thrust coefficient')
@@ -179,7 +179,7 @@ constraints+=[
 # All weights
 constraints += [
 	W_i >= W_b + W_h + W_v+ W_fuse + W_w + W_eng + g*(m_payload + m_fuel),
-	W_f >= W_b + W_h + W_v + W_fuse + W_w + W_eng + g*(m_payload),
+	W_f >= W_b + W_h + W_v + W_fuse + W_w + W_eng + g*(m_payload + m_fuel),
 	# (m_struc*g)/W_i >= 0.7,
 	# (m_struc*g) <= m_limit*g
 ]
