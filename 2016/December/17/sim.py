@@ -2,6 +2,30 @@ from gpkit import Model, Variable
 import numpy as np
 import gpkit
 
+def updateOpenVSP(inputDict):
+	filename = 'design.des'
+	with open(filename,'r+') as f:
+		result = f.read()
+		a = result.split('\n')
+		outputLines = []
+		for line in a:
+			words = line.split(':')
+			if len(words) > 1:
+				key = words[0]
+				value = float(words[-1])
+				if key in inputDict:
+					value = " " + str(inputDict[key])
+				words[-1] = value
+			outputLine = ":".join(words)
+			outputLines += [outputLine]
+		output = '\n'.join(outputLines)
+		print('OpenVSP .des output:')
+		print(output)
+		f.seek(0)
+		f.write(output)
+		f.truncate()
+		f.close()
+
 z = Variable('z','-','Breguet range parameter')
 theta_fuel = Variable('theta_fuel','-','Fuel fraction W_fuel/W_zfw')
 g = Variable('g',3.711,'m/s/s','Surface gravity on Mars')
@@ -209,3 +233,6 @@ print('fuel')
 print(sol(V_fuel))
 tankCrossA = 0.15*0.12;
 print(sol(V_fuel)/tankCrossA)
+print float(sol(S).magnitude)
+resultsDict = {'VHNJACDDXEA':float(sol(S).magnitude),'FDGQUUBYWFT':float(sol(b/A).magnitude),'ZVJTAUAEWVE':float(sol(b).magnitude),'CSWCUOQMTDT':float(sol(b).magnitude)}
+updateOpenVSP(resultsDict)

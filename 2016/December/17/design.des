@@ -1,16 +1,5 @@
-15
-VHNJACDDXEA:WingGeom:WingGeom:TotalArea: 0.337178
-FDGQUUBYWFT:WingGeom:WingGeom:TotalChord: 0.171
-ZVJTAUAEWVE:WingGeom:WingGeom:TotalProjectedSpan: 1.9718
-CSWCUOQMTDT:WingGeom:WingGeom:TotalSpan: 1.9718
-ONRUTHDMJKO:boom:XSecCurve_1:Circle_Diameter: 0.002
-FRCCONHBPQR:boom:XSec_1:XDelta: 1.532
-DYOXXWPXLYP:h:WingGeom:TotalArea: 0.0168722
-IYLPOEIGFJB:h:WingGeom:TotalChord: 0.058
-ISNAZLXSFVZ:h:WingGeom:TotalProjectedSpan: 0.2909
-BVYNLSXISAN:h:WingGeom:TotalSpan: 0.2909
-GXWMPVVNAOZ:tank:XSec_2:XDelta: 0.0723
-UMDERIMPIKL:v:WingGeom:TotalArea: 0.0151324
-FMQJZNJUFSH:v:WingGeom:TotalChord: 0.0711
-VWCSQJVKFAZ:v:WingGeom:TotalProjectedSpan: 0.212832
-JKPTWJDDIXA:v:WingGeom:TotalSpan: 0.212832
+4
+VHNJACDDXEA:WingGeom:WingGeom:TotalArea: 0.337189250743
+FDGQUUBYWFT:WingGeom:WingGeom:TotalChord: 0.171005233088
+ZVJTAUAEWVE:WingGeom:WingGeom:TotalProjectedSpan: 1.97180662051
+CSWCUOQMTDT:WingGeom:WingGeom:TotalSpan: 1.97180662051
