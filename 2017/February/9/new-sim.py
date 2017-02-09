@@ -27,7 +27,7 @@ class Aircraft(Model):
         C_D0 = Variable("C_D0","-")
         return self.components, [
             W >= sum(c["W"] for c in self.components),
-            self.wing["S_wet"] >= self.wing["S"]*(1.977 + 0.52),
+            self.wing["S_wet"] >= self.wing["S"]*(1.977),
             wettedAreaRatio >= (self.wing["S_wet"] + self.hull["S_wet"])/self.wing["S"],
             C_D0 >= 0.0065*wettedAreaRatio
         ]
@@ -42,7 +42,7 @@ class AircraftP(Model):
         self.wing_aero = aircraft.wing.dynamic(state)
         self.engine_p = aircraft.engine.dynamic(state)
         self.propeller_p = aircraft.propeller.dynamic(state)
-
+        
         self.perf_models = [self.wing_aero,self.engine_p,self.propeller_p]
         Wfuel = Variable("W_{fuel}", "N", "fuel weight")
         Wburn = Variable("W_{burn}", "N", "segment fuel burn")
@@ -193,13 +193,18 @@ class Turbojet(Model):
     def setup(self):
         # Specs for PBS TJ20
         W = Variable("W",2.1*9.8,"N")
+        T_max = Variable("T_max",210,"N")
     def dynamic(self,state):
         return TurbojetP(self,state)
 
 class TurbojetP(Model):
     def setup(self,turbojet,state):
         T = Variable("T","N")
-        
+        mdot = Variable("mdot","kg/s")
+        D = Variable("D",1e-7,"N")
+        return [    T<=turbojet["T_max"],
+                    T<=turbojet["TSFC"]*state["mdot"]]
+
 class Pilot(Model):
     def setup(self):
         W = Variable("W",735,"N","weight")
