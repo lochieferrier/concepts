@@ -7,18 +7,19 @@ class Aircraft(Model):
     def setup(self):
         self.hull = Hull()
         self.wing = Wing()
-        self.engine = Engine()
-        self.propeller = Propeller()
+        # self.engine = Engine()
+        # self.propeller = Propeller()
         self.turbojet = Turbojet()
         self.drone = Drone()
-
+        self.pontoon_left = Pontoon()
+        self.pontoon_right = Pontoon()
         # self.pilot = Pilot()
         self.fuel_tank = FuelTank()
         self.fuel = Fuel()
         # self.tail = Tail()
         # self.avionics = Avionics()
         # self.prop_tower = PropTower()
-        self.components = [self.hull, self.engine, self.propeller, self.turbojet, self.drone, self.wing]
+        self.components = [self.hull, self.turbojet, self.drone, self.wing, self.pontoon_left,self.pontoon_right]
 
         W = Variable("W", "N", "weight")
         self.weight = W
@@ -40,10 +41,10 @@ class AircraftP(Model):
     def setup(self, aircraft, state):
         self.aircraft = aircraft
         self.wing_aero = aircraft.wing.dynamic(state)
-        self.engine_p = aircraft.engine.dynamic(state)
-        self.propeller_p = aircraft.propeller.dynamic(state)
-        
-        self.perf_models = [self.wing_aero,self.engine_p,self.propeller_p]
+        # self.engine_p = aircraft.engine.dynamic(state)
+        # self.propeller_p = aircraft.propeller.dynamic(state)
+        self.turbojet_p = aircraft.turbojet.dynamic(state)
+        self.perf_models = [self.wing_aero,self.turbojet_p]
         Wfuel = Variable("W_{fuel}", "N", "fuel weight")
         Wburn = Variable("W_{burn}", "N", "segment fuel burn")
         self.D = Variable("D","N")
@@ -54,12 +55,10 @@ class AircraftP(Model):
             aircraft.weight + Wfuel <= (0.5*state["\\rho"]*state["V"]**2
                                         * self.wing_aero["C_L"]
                                         * aircraft.wing["S"]),
-            # self.LD <= (aircraft.weight + Wfuel)/self.D,
             self.D >= sum(p["D"] for p in self.perf_models) + 0.5*state["\\rho"]*state["V"]**2*aircraft["C_D0"]*aircraft.wing["S"],
-            self.propeller_p['P_in'] == self.engine_p.P,
-            Wburn/(state['g']*self.engine_p['mdot']) == self.Range/state['V'],
+            Wburn/(state['g']*self.turbojet_p['mdot']) == self.Range/state['V'],
             Wfuel <= state['g']*self.aircraft.fuel_tank['V']*self.aircraft.fuel['rho'], 
-            self.propeller_p["T"] >= self.D,
+            self.turbojet_p["T"] >= self.D,
             self.z_bre >= (state["g"]*self.Range*self.D)/(aircraft.fuel['h']*aircraft["n_0"]*aircraft.weight),
             Wburn/aircraft.weight >= self.z_bre + (self.z_bre**2)/2 + (self.z_bre**3)/6 + (self.z_bre**4)/24,
         ]
@@ -84,7 +83,7 @@ class Mission(Model):
     def setup(self, aircraft):
         with Vectorize(4):  # four flight segments
             fs = FlightSegment(aircraft)
-        Vmin = Variable('Vmin',20.1168,'m/s')
+        Vmin = Variable('Vmin',10,'m/s')
         Wburn = fs.aircraftp["W_{burn}"]
         Wfuel = fs.aircraftp["W_{fuel}"]
         self.takeoff_fuel = Wfuel[0]
@@ -139,8 +138,8 @@ class WingAero(Model):
 class Hull(Model):
     "The thing that carries the fuel, engine, and payload"
     def setup(self):
-        Variable("W", 101.99, "N", "weight")
-        Variable("S_wet", 5.1, "m^2")
+        Variable("W", 50, "N", "weight")
+        Variable("S_wet", 3, "m^2")
     def dynamic(self,hull,state):
         return HullP(self,state)
 
@@ -149,51 +148,52 @@ class HullP(Model):
         D = Variable("D","N")
         return []
 
-class Engine(Model):
-    def setup(self):
-        W = Variable("W",421.4,"N","weight")
-        P_max = Variable("P_max",26099,"W","max engine power output")
-        BSFC_min = Variable("BSFC_min",1.4359644493044238e-07,"kg/W/s","maximum brake specfic fuel consumption")
-    def dynamic(self,state):
-        return EngineP(self,state)
+# class Engine(Model):
+#     def setup(self):
+#         W = Variable("W",421.4,"N","weight")
+#         P_max = Variable("P_max",26099,"W","max engine power output")
+#         BSFC_min = Variable("BSFC_min",1.4359644493044238e-07,"kg/W/s","maximum brake specfic fuel consumption")
+#     def dynamic(self,state):
+#         return EngineP(self,state)
 
-class EngineP(Model):
-    def setup(self,engine,state):
-        mdot = Variable("mdot","kg/s","fuel mass flow")
-        self.P = Variable("P","W","engine power output")
-        throttle = Variable("throttle","-","throttle position")
-        D = Variable("D",1e-7,"N")
-        return [self.P <= mdot/engine["BSFC_min"],
-                self.P <= engine["P_max"],
-                throttle == self.P/engine["P_max"]]
+# class EngineP(Model):
+#     def setup(self,engine,state):
+#         mdot = Variable("mdot","kg/s","fuel mass flow")
+#         self.P = Variable("P","W","engine power output")
+#         throttle = Variable("throttle","-","throttle position")
+#         D = Variable("D",1e-7,"N")
+#         return [self.P <= mdot/engine["BSFC_min"],
+#                 self.P <= engine["P_max"],
+#                 throttle == self.P/engine["P_max"]]
 
-class Propeller(Model):
-    def setup(self):
-        W = Variable("W",50,"N","weight")
-        diameter = Variable("diameter",1.5,"m","Diameter")
-    def dynamic(self,state):
-        return PropellerP(self,state)
+# class Propeller(Model):
+#     def setup(self):
+#         W = Variable("W",50,"N","weight")
+#         diameter = Variable("diameter",1.5,"m","Diameter")
+#     def dynamic(self,state):
+#         return PropellerP(self,state)
 
-class PropellerP(Model):
-    def setup(self,propeller,state):
-        # What the hell is a?
-        a = 0.8
-        T = Variable("T","N","thrust")
-        f = Variable("f","1/s","frequency")
-        P_in = Variable("P_in","W","power input")
-        n = Variable("n",0.8,"-","efficiency")
-        J = Variable("J","-","advance ratio")
-        D = Variable("D",1e-7,"N")
-        return [J == state['V']/(f*propeller["diameter"]),
-                f <= Variable("f",45,"1/s","prop speed limit"),
-                n <= a*J,
-                T<= P_in*n/state['V']]
+# class PropellerP(Model):
+#     def setup(self,propeller,state):
+#         # What the hell is a?
+#         a = 0.8
+#         T = Variable("T","N","thrust")
+#         f = Variable("f","1/s","frequency")
+#         P_in = Variable("P_in","W","power input")
+#         n = Variable("n",0.8,"-","efficiency")
+#         J = Variable("J","-","advance ratio")
+#         D = Variable("D",1e-7,"N")
+#         return [J == state['V']/(f*propeller["diameter"]),
+#                 f <= Variable("f",45,"1/s","prop speed limit"),
+#                 n <= a*J,
+#                 T<= P_in*n/state['V']]
 
 class Turbojet(Model):
     def setup(self):
         # Specs for PBS TJ20
         W = Variable("W",2.1*9.8,"N")
         T_max = Variable("T_max",210,"N")
+        TSFC = Variable("TSFC",0.000277778*0.165,"kg/(N*s)")
     def dynamic(self,state):
         return TurbojetP(self,state)
 
@@ -203,7 +203,7 @@ class TurbojetP(Model):
         mdot = Variable("mdot","kg/s")
         D = Variable("D",1e-7,"N")
         return [    T<=turbojet["T_max"],
-                    T<=turbojet["TSFC"]*state["mdot"]]
+                    T<=mdot/turbojet["TSFC"]]
 
 class Pilot(Model):
     def setup(self):
@@ -211,7 +211,11 @@ class Pilot(Model):
 
 class FuelTank(Model):
     def setup(self):
-        V = Variable("V",0.036,"m^3","volume")
+        V = Variable("V","m^3","volume")
+        l = Variable("l","m")
+        w = Variable("w",0.3,"m")
+        h = Variable("h",0.2,"m")
+        return [V == l*w*h]
 
 class Fuel(Model):
     def setup(self):
@@ -233,7 +237,12 @@ class PropTower(Model):
 
 class Drone(Model):
     def setup(self):
-        W = Variable("W",4*.98,"N","maximum weight of inspire 2")
+        W = Variable("W",4*9.8,"N","maximum weight of inspire 2")
+
+class Pontoon(Model):
+    def setup(self):
+        W = Variable("W",2*9.8,"N","weight of bouyancy pontoon")
+
 
 AC = Aircraft()
 MISSION = Mission(AC)
@@ -249,6 +258,7 @@ rangeInKm = 0.001*SOL(MISSION.range)
 rangeObjective = 500
 
 print('Range is ' + str(rangeInKm)+' km')
+print('Fuel tank length is ' + str(SOL(AC.fuel_tank["V"])/0.6))
 # print('At %s percent of range goal'%str(100*rangeInKm/rangeObjective))
 # print('MTOW of ' + str(sol(W)))
 # print('Cruise LD of '+str(sol(C_L/C_D)))
