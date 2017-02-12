@@ -1,6 +1,20 @@
 """Modular aircraft concept"""
+
+# Model 2
+# Mission
+# Fly as fast as a 787 and as slow as a C-172R, whilst keeping long range
+# Takeoff - slow - fast - cruiserange (x3) - land (not modeled)
+# Stressed up to 2gs at high speed
+
+# 172R cruises at 122 knots, stalls at 47
+# 787 cruises at 487 knots
+# 100-500 would be a good range
+
+
 import numpy as np
 from gpkit import Model, Variable, Vectorize, VectorVariable
+
+g = Variable("g",9.8,"m/s/s")
 
 class Aircraft(Model):
     "The vehicle model"
@@ -14,6 +28,10 @@ class Aircraft(Model):
         self.seat_fr = Seat()
         self.seat_rl = Seat()
         self.vtail = Vtail()
+
+        self.pilot = Person()
+        self.co_pilot = Person()
+        self.observer = Person()
 
         self.turbofan = Turbofan()
         self.gear_pod_left = GearPod()
@@ -30,17 +48,19 @@ class Aircraft(Model):
         # self.tail = Tail()
         # self.avionics = Avionics()
         # self.prop_tower = PropTower()
-        self.components = [self.hull, self.turbojet, self.drone, self.wing, self.pontoon_left,self.pontoon_right]
+        self.components = [self.fuselage, self.observable, self.wing, self.flight_deck, self.seat_fl, self.seat_fr, self.seat_rl, self.vtail,
+                            self.turbofan, self.gear_pod_left, self.gear_pod_right, self.rear_gear_left, self.rear_gear_right, self.front_gear, self.pilot,
+                            self.co_pilot]
 
-        W = Variable("W", "N", "weight")
-        self.weight = W
+        m = Variable("m", "kg", "mass")
+        self.mass = m
         n_0 = Variable("n_0",0.3*0.7,"-")
         wettedAreaRatio = Variable("wettedAreaRatio","-")
         C_D0 = Variable("C_D0","-")
         return self.components, [
-            W >= sum(c["W"] for c in self.components),
+            m >= sum(c["m"] for c in self.components),
             self.wing["S_wet"] >= self.wing["S"]*(1.977),
-            wettedAreaRatio >= (self.wing["S_wet"] + self.hull["S_wet"])/self.wing["S"],
+            wettedAreaRatio >= (self.wing["S_wet"] + self.fuselage["S_wet"])/self.wing["S"],
             C_D0 >= 0.0065*wettedAreaRatio
         ]
 
@@ -54,24 +74,23 @@ class AircraftP(Model):
         self.wing_aero = aircraft.wing.dynamic(state)
         # self.engine_p = aircraft.engine.dynamic(state)
         # self.propeller_p = aircraft.propeller.dynamic(state)
-        self.turbojet_p = aircraft.turbojet.dynamic(state)
-        self.perf_models = [self.wing_aero,self.turbojet_p]
-        Wfuel = Variable("W_{fuel}", "N", "fuel weight")
-        Wburn = Variable("W_{burn}", "N", "segment fuel burn")
+        self.turbofan_p = aircraft.turbofan.dynamic(state)
+        self.perf_models = [self.wing_aero,self.turbofan_p]
+        m_fuel = Variable("m_{fuel}", "kg", "fuel weight")
+        m_burn = Variable("m_{burn}", "kg", "segment fuel burn")
         self.D = Variable("D","N")
         self.Range = Variable("range","m")
         self.z_bre = Variable("z_bre","-")
-        self.LD = Variable("LD","-")
         return self.perf_models, [
-            aircraft.weight + Wfuel <= (0.5*state["\\rho"]*state["V"]**2
+            aircraft.mass + m_fuel <= (0.5*state["\\rho"]*state["V"]**2
                                         * self.wing_aero["C_L"]
-                                        * aircraft.wing["S"]),
+                                        * aircraft.wing["S"])/g,
             self.D >= sum(p["D"] for p in self.perf_models) + 0.5*state["\\rho"]*state["V"]**2*aircraft["C_D0"]*aircraft.wing["S"],
-            Wburn/(state['g']*self.turbojet_p['mdot']) == self.Range/state['V'],
-            Wfuel <= state['g']*self.aircraft.fuel_tank['V']*self.aircraft.fuel['rho'], 
-            self.turbojet_p["T"] >= self.D,
-            self.z_bre >= (state["g"]*self.Range*self.D)/(aircraft.fuel['h']*aircraft["n_0"]*aircraft.weight),
-            Wburn/aircraft.weight >= self.z_bre + (self.z_bre**2)/2 + (self.z_bre**3)/6 + (self.z_bre**4)/24,
+            m_burn/(self.turbofan_p['mdot']) == self.Range/state['V'],
+            m_fuel <= self.aircraft.fuel_tank['V']*self.aircraft.fuel['rho'], 
+            self.turbofan_p["T"] >= self.D,
+            self.z_bre >= (state["g"]*self.Range*self.D)/(aircraft.fuel['h']*aircraft["n_0"]*aircraft.mass*g),
+            m_burn/aircraft.mass >= self.z_bre + (self.z_bre**2)/2 + (self.z_bre**3)/6 + (self.z_bre**4)/24,
         ]
 
 class FlightState(Model):
@@ -92,19 +111,30 @@ class FlightSegment(Model):
 class Mission(Model):
     "A sequence of flight segments"
     def setup(self, aircraft):
+        # 1 - low speed
+        # 3 - range (high speed)
+        # 4 - range (high speed)
+        # 5 - range (high speed)
+
         with Vectorize(4):  # four flight segments
             fs = FlightSegment(aircraft)
-        Vmin = Variable('Vmin',10,'m/s')
-        Wburn = fs.aircraftp["W_{burn}"]
-        Wfuel = fs.aircraftp["W_{fuel}"]
-        self.takeoff_fuel = Wfuel[0]
+        # Desired stall/landing speed
+        V_min = Variable('Vmin',10,'m/s')
+
+        # Based on 100-500 knots airspeed range requirement
+        V_slow_shoot = Variable('V_slow_shoot',51.444,'m/s')
+        V_fast_shoot = Variable('V_fast_shoot',257.222,'m/s')
+        m_burn = fs.aircraftp["m_{burn}"]
+        m_fuel = fs.aircraftp["m_{fuel}"]
+        self.takeoff_fuel = m_fuel[0]
         self.range = Variable("range","m")
         self.z_bre = Variable("z_bre","-")
         return fs, [
-                    Wfuel[:-1] >= Wfuel[1:] + Wburn[:-1],
-                    Wfuel[-1] >= Wburn[-1],
+                    m_fuel[:-1] >= m_fuel[1:] + m_burn[:-1],
+                    m_fuel[-1] >= m_burn[-1],
                     fs.aircraftp.Range[0] == 0.01*self.range,
-                    fs.flightstate['V'][0] <= Vmin, 
+                    fs.flightstate['V'][0] <= V_min,
+                    fs.flightstate['V'][1:] >= V_fast_shoot,
                     fs.aircraftp.Range[1:] == self.range/3
         ]
 
@@ -112,14 +142,14 @@ class Wing(Model):
     "Aircraft wing model"
 
     def setup(self):
-        W = Variable("W", "N", "weight")
+        m = Variable("m","kg","mass")
         S = Variable("S", "m^2", "surface area")
         S_wet = Variable("S_wet", "m^2", "wetted area")
         rho = Variable("\\rho", 0.425*9.8, "N/m^2", "areal density")
         A = Variable("A", "-", "aspect ratio")
         c = Variable("c", "m", "mean chord")
         b = Variable("b", "m", "span")
-        return [W >= S*rho,
+        return [m*g >= S*rho,
                 c == (S/A)**0.5,
                 b == A*c,
                 S == b*c]
@@ -136,11 +166,9 @@ class WingAero(Model):
         e = Variable("e", "-", "Oswald efficiency")
         Re = Variable("Re", "-", "Reynold's number")
         D = Variable("D", "N", "drag force")
-        sigma = Variable("sigma","-","ground effect correction factor")  #p148 YBD
         return [
             e + (1.78*0.045*wing["A"]**0.68) <= 1.14, 
             e >= 0.1,
-            wing["A"]<=3*1.38, #Raymer 12.6
             C_D >= (0.074/(Re**0.2) + CL**2/(np.pi*wing["A"]*e)),
             Re == state["\\rho"]*state["V"]*wing["c"]/state["\\mu"],
             D >= 0.5*state["\\rho"]*state["V"]**2*C_D*wing["S"]
@@ -150,7 +178,7 @@ class WingAero(Model):
 class Fuselage(Model):
     "The thing that carries the fuel, engine, and payload"
     def setup(self):
-        m = Variable("m", "kg", "mass")
+        m = Variable("m", 10,"kg", "mass")
         S_wet = Variable("S_wet", 3, "m^2")
     def dynamic(self,hull,state):
         return FuselageP(self,state)
@@ -161,7 +189,7 @@ class FuselageP(Model):
 
 class Observable(Model):
     def setup(self):
-        m = Variable("m","kg","mass")
+        m = Variable("m",10,"kg","mass")
 
 class Seat(Model):
     def setup(self):
@@ -173,7 +201,8 @@ class FlightDeck(Model):
 
 class Vtail(Model):
     def setup(self):
-        m = Variable("m",)
+        m = Variable("m",10,"kg","mass")
+
 
 # class Engine(Model):
 #     def setup(self):
@@ -215,16 +244,15 @@ class Vtail(Model):
 #                 n <= a*J,
 #                 T<= P_in*n/state['V']]
 
-class Turbojet(Model):
+class Turbofan(Model):
     def setup(self):
-        # Specs for PBS TJ20
-        W = Variable("W",2.1*9.8,"N")
-        T_max = Variable("T_max",210,"N")
+        m = Variable("m",23,"kg","mass")
+        T_max = Variable("T_max",21000,"N")
         TSFC = Variable("TSFC",0.000277778*0.165,"kg/(N*s)")
     def dynamic(self,state):
-        return TurbojetP(self,state)
+        return TurbofanP(self,state)
 
-class TurbojetP(Model):
+class TurbofanP(Model):
     def setup(self,turbojet,state):
         T = Variable("T","N")
         mdot = Variable("mdot","kg/s")
@@ -232,9 +260,37 @@ class TurbojetP(Model):
         return [    T<=turbojet["T_max"],
                     T<=mdot/turbojet["TSFC"]]
 
-class Pilot(Model):
+class GearPod(Model):
     def setup(self):
-        W = Variable("W",735,"N","weight")
+        m = Variable("m",10,"kg","mass")
+
+class RearGear(Model):
+    def setup(self):
+        m = Variable("m",10,"kg","mass")
+
+class FrontGear(Model):
+    def setup(self):
+        m = Variable("m",10,"kg","mass")
+# class Turbojet(Model):
+#     def setup(self):
+#         # Specs for PBS TJ20
+#         W = Variable("W",2.1*9.8,"N")
+#         T_max = Variable("T_max",210,"N")
+#         TSFC = Variable("TSFC",0.000277778*0.165,"kg/(N*s)")
+#     def dynamic(self,state):
+#         return TurbojetP(self,state)
+
+# class TurbojetP(Model):
+#     def setup(self,turbojet,state):
+#         T = Variable("T","N")
+#         mdot = Variable("mdot","kg/s")
+#         D = Variable("D",1e-7,"N")
+#         return [    T<=turbojet["T_max"],
+#                     T<=mdot/turbojet["TSFC"]]
+
+class Person(Model):
+    def setup(self):
+        m = Variable("m",735,"kg","weight")
 
 class FuelTank(Model):
     def setup(self):
