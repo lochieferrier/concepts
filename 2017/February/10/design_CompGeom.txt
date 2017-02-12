@@ -1,0 +1,26 @@
+...Comp Geom...
+11 Num Comps
+18 Total Num Meshes
+44784 Total Num Tris
+
+Theo_Area   Wet_Area   Theo_Vol    Wet_Vol  Name
+    8.501      8.175      1.924      1.910  observable0    
+    0.663      0.307      0.038      0.018  gear0          
+    0.060      0.033      0.001      0.000  StrutGear0     
+    0.228      0.224      0.007      0.007  StrutGear1     
+    0.613      0.339      0.015      0.009  pylon0         
+   11.558     10.951      1.082      1.059  main_carry_through0
+    0.489      0.379      0.009      0.008  engine_pylon0  
+   22.232     21.922      0.928      0.928  main_wing0     
+   22.232     21.922      0.928      0.928  main_wing1     
+    9.936      9.540      0.283      0.281  v-tail0        
+    3.202      3.107      0.301      0.301  landing_pods0  
+    3.202      3.107      0.301      0.301  landing_pods1  
+    0.730      0.017      0.021      0.001  StrutGear0     
+    0.309      0.000      0.010      0.000  StrutGear1     
+    0.730      0.017      0.021      0.001  StrutGear2     
+    0.309      0.000      0.010      0.000  StrutGear3     
+-------------------------------------------------
+   84.990     80.039      5.880      5.750  Totals         
+WARNING: 1 open meshes removed
+WARNING: 1 open meshes merged
