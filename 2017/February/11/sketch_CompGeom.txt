@@ -1,0 +1,33 @@
+...Comp Geom...
+9 Num Comps
+44 Total Num Meshes
+150797 Total Num Tris
+
+Theo_Area   Wet_Area   Theo_Vol    Wet_Vol  Name
+  427.412    377.183     54.556       -nan  main_wing0     
+   58.661     58.625      2.758       -nan  tail0          
+  165.400    159.072     74.708       -nan  fuselage0      
+    0.854      0.609      0.039       -nan  rear_gear0     
+    1.829      0.917      0.151       -nan  rear_gear1     
+    1.829      0.922      0.151       -nan  rear_gear2     
+    0.854      0.611      0.039       -nan  rear_gear3     
+    1.829      1.758      0.151       -nan  rear_gear4     
+    1.829      1.758      0.151       -nan  rear_gear5     
+    0.600      0.521      0.027       -nan  front_gear0    
+    0.710      0.346      0.033       -nan  front_gear1    
+    0.710      0.639      0.033       -nan  front_gear2    
+    3.516      1.742      0.347       -nan  MeshGeom1      
+    3.516      1.630      0.253       -nan  MeshGeom2      
+    0.000      0.000      0.000       -nan  MeshGeom3      
+    0.000      0.000      0.000       -nan  MeshGeom4      
+    0.000      0.000      0.000       -nan  MeshGeom5      
+    1.277      0.647      0.063       -nan  MeshGeom1      
+    0.000      0.000      0.000       -nan  MeshGeom2      
+    0.000      0.000      0.000       -nan  MeshGeom3      
+    0.000      0.000      0.000       -nan  MeshGeom4      
+    0.000      0.000      0.000       -nan  MeshGeom5      
+    0.000      0.000      0.000       -nan  MeshGeom2      
+-------------------------------------------------
+  670.828    606.980    133.461    124.793  Totals         
+WARNING: 14 open meshes removed
+WARNING: 7 open meshes merged
