@@ -1,89 +1,46 @@
-"""Modular aircraft concept"""
 import numpy as np
 from gpkit import Model, Variable, Vectorize
 
-
 class Aircraft(Model):
-    "The vehicle model"
-    def setup(self):
-        self.fuse = Fuselage()
-        self.wing = Wing()
-        self.components = [self.fuse, self.wing]
+	def setup(self):
+		self.wing = Wing()
+		self.prop = Propulsion()
+		self.components = [self.wing]
 
-        W = Variable("W", "lbf", "weight")
-        self.weight = W
-        return self.components, [
-            W >= sum(c["W"] for c in self.components)
-            ]
+		self.mass = Variable('m','kg','mass')
+		return self.components, [
+			self.mass >= sum(c['m'] for c in self.components)
+		]
 
-    def dynamic(self, state):
-        "This component's performance model for a given state."
-        return AircraftP(self, state)
-
+	def dynamic(self, state):
+		return AircraftP(self, state)
 
 class AircraftP(Model):
-    "Aircraft flight physics: weight <= lift, fuel burn"
-    def setup(self, aircraft, state):
-        self.aircraft = aircraft
-        self.wing_aero = aircraft.wing.dynamic(state)
-        self.perf_models = [self.wing_aero]
-        Wfuel = Variable("W_{fuel}", "lbf", "fuel weight")
-        Wburn = Variable("W_{burn}", "lbf", "segment fuel burn")
+	def setup(self, aircraft, state):
+		self.aircraft = aircraft
+		self.wing_aero = aircraft.wing.dynamic(state)
+		self.prop_perf = aircraft.prop.dynamic(state)
 
-        return self.perf_models, [
-            aircraft.weight + Wfuel <= (0.5*state["\\rho"]*state["V"]**2
-                                             * self.wing_aero["C_L"]
-                                             * aircraft.wing["S"]),
-            Wburn >= 0.1*self.wing_aero["D"]
-            ]
+		self.perf_models = [self.wing_aero,self.prop_perf]
 
-
-class FlightState(Model):
-    "Context for evaluating flight physics"
-    def setup(self):
-        Variable("V", 40, "knots", "true airspeed")
-        Variable("\\mu", 1.628e-5, "N*s/m^2", "dynamic viscosity")
-        Variable("\\rho", 0.74, "kg/m^3", "air density")
-
-
-class FlightSegment(Model):
-    "Combines a context (flight state) and a component (the aircraft)"
-    def setup(self, aircraft):
-        self.flightstate = FlightState()
-        self.aircraftp = aircraft.dynamic(self.flightstate)
-        return self.flightstate, self.aircraftp
-
-
-class Mission(Model):
-    "A sequence of flight segments"
-    def setup(self, aircraft):
-        with Vectorize(4):  # four flight segments
-            self.fs = FlightSegment(aircraft)
-
-        Wburn = self.fs.aircraftp["W_{burn}"]
-        Wfuel = self.fs.aircraftp["W_{fuel}"]
-        self.takeoff_fuel = Wfuel[0]
-
-        return self.fs, [Wfuel[:-1] >= Wfuel[1:] + Wburn[:-1],
-                         Wfuel[-1] >= Wburn[-1]]
-
+		return self.perf_models, [
+			aircraft.mass*state['g'] <= 0.5*state['rho']*(state['V']**2)*self.wing_aero["C_L"]*aircraft.wing['S'],
+			self.prop_perf['T'] >= 0.5*state['rho']*(state['V']**2)*self.wing_aero["C_D"]*aircraft.wing['S']
+		]
 
 class Wing(Model):
-    "Aircraft wing model"
-    def dynamic(self, state):
-        "Returns this component's performance model for a given state."
-        return WingAero(self, state)
+	def setup(self):
+		m = Variable('m','kg', "mass")
+		S = Variable("S", 190, "m^2", "surface area")
+		rho = Variable("\\rho", 1, "kg/m^2", "areal density")
+		A = Variable("A", 27, "-", "aspect ratio")
+		c = Variable("c", "ft", "mean chord")
 
-    def setup(self):
-        W = Variable("W", "lbf", "weight")
-        S = Variable("S", 190, "ft^2", "surface area")
-        rho = Variable("\\rho", 1, "lbf/ft^2", "areal density")
-        A = Variable("A", 27, "-", "aspect ratio")
-        c = Variable("c", "ft", "mean chord")
+		return [m >= S*rho,
+		c == (S/A)**0.5]
 
-        return [W >= S*rho,
-                c == (S/A)**0.5]
-
+	def dynamic(self, state):
+		return WingAero(self, state)
 
 class WingAero(Model):
     "Wing aerodynamics"
@@ -96,29 +53,43 @@ class WingAero(Model):
 
         return [
             CD >= (0.074/Re**0.2 + CL**2/np.pi/wing["A"]/e),
-            Re == state["\\rho"]*state["V"]*wing["c"]/state["\\mu"],
-            D >= 0.5*state["\\rho"]*state["V"]**2*CD*wing["S"],
+            Re == state["rho"]*state["V"]*wing["c"]/state["\\mu"],
+            D >= 0.5*state["rho"]*state["V"]**2*CD*wing["S"],
             ]
 
+class Propulsion(Model):
+	def setup(self):
+		m = Variable('m','kg','mass')
+	def dynamic(self,state):
+		return PropPerf(self,state)
 
-class Fuselage(Model):
-    "The thing that carries the fuel, engine, and payload"
-    def setup(self):
-        # fuselage needs an external dynamic drag model,
-        # left as an exercise for the reader
-        # V = Variable("V", 16, "gal", "volume")
-        # d = Variable("d", 12, "in", "diameter")
-        # S = Variable("S", "ft^2", "wetted area")
-        # cd = Variable("c_d", .0047, "-", "drag coefficient")
-        # CDA = Variable("CDA", "ft^2", "drag area")
-        Variable("W", 100, "lbf", "weight")
+class PropPerf(Model):
+	def setup(self,prop,state):
+		T = Variable('T',1e4,'N','thrust')
 
-AC = Aircraft()
-MISSION = Mission(AC)
-M = Model(MISSION.takeoff_fuel, [MISSION, AC])
-sol = M.solve(verbosity=0)
 
-vars_of_interest = set(AC.varkeys)
-vars_of_interest.update(MISSION.fs.aircraftp.unique_varkeys)
-vars_of_interest.add("D")
-print sol.summary(vars_of_interest)
+class FlightState(Model):
+	def setup(self):
+		Variable("V", "knots", "true airspeed")
+		Variable("\\mu", 1.628e-5, "N*s/m^2", "dynamic viscosity")
+		Variable("rho", 0.74, "kg/m^3", "air density")
+		Variable('g', 9.8, 'm/s/s', 'acceleration due to gravity')
+
+class FlightSegment(Model):
+	def setup(self, aircraft):
+		self.flightstate = FlightState()
+		self.aircraftp = aircraft.dynamic(self.flightstate)
+		return self.flightstate, self.aircraftp
+
+class Mission(Model):
+	def setup(self, aircraft):
+		with Vectorize(4):
+			self.fs = FlightSegment(aircraft)
+		self.Vmax = self.fs['V'][3]
+		return self.fs
+
+ac = Aircraft()
+mission = Mission(ac)
+m = Model(1/mission.Vmax,[mission,ac])
+sol = m.solve()
+print sol.table()
