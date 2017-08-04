@@ -5,7 +5,8 @@ class Aircraft(Model):
 	def setup(self):
 		self.wing = Wing()
 		self.prop = Propulsion()
-		self.components = [self.wing]
+		self.battery = Battery()
+		self.components = [self.wing,self.prop,self.battery]
 
 		self.mass = Variable('m','kg','mass')
 		return self.components, [
@@ -22,10 +23,10 @@ class AircraftP(Model):
 		self.prop_perf = aircraft.prop.dynamic(state)
 
 		self.perf_models = [self.wing_aero,self.prop_perf]
-
+		self.acceleration = Variable('a',2.3,'m/s/s','acceleration or thrust excess')
 		return self.perf_models, [
 			aircraft.mass*state['g'] <= 0.5*state['rho']*(state['V']**2)*self.wing_aero["C_L"]*aircraft.wing['S'],
-			self.prop_perf['T'] >= 0.5*state['rho']*(state['V']**2)*self.wing_aero["C_D"]*aircraft.wing['S']
+			self.prop_perf['T'] >= 0.5*state['rho']*(state['V']**2)*self.wing_aero["C_D"]*aircraft.wing['S'] + aircraft.mass*self.acceleration
 		]
 
 class Wing(Model):
@@ -56,17 +57,30 @@ class WingAero(Model):
             Re == state["rho"]*state["V"]*wing["c"]/state["\\mu"],
             D >= 0.5*state["rho"]*state["V"]**2*CD*wing["S"],
             ]
+class Battery(Model):
+	def setup(self):
+		m = Variable('m',2,'kg','mass')
+		E = Variable('E',3.6e6,'joule','battery capacity')
+
+	def dynamic(self, state):
+		return BatteryPerf(self,state)
+
+class BatteryPerf(Model):
+	def setup(self,battery,state):
+		V = Variable('V','V','battery voltage')
 
 class Propulsion(Model):
 	def setup(self):
-		m = Variable('m','kg','mass')
+		m = Variable('m',10,'kg','mass')
 	def dynamic(self,state):
 		return PropPerf(self,state)
 
 class PropPerf(Model):
 	def setup(self,prop,state):
-		T = Variable('T',1e4,'N','thrust')
-
+		T = Variable('T','N','thrust')
+		P = Variable('P',100,'W','power')
+		n = Variable('n',1,'N/W','efficiency')
+		return [T <= P*n]
 
 class FlightState(Model):
 	def setup(self):
@@ -79,14 +93,19 @@ class FlightSegment(Model):
 	def setup(self, aircraft):
 		self.flightstate = FlightState()
 		self.aircraftp = aircraft.dynamic(self.flightstate)
-		return self.flightstate, self.aircraftp
+		self.t = Variable('t','s','duration of flight segment')
+		self.E_used = Variable('E_used','joule','energy used from battery in flight segment')
+		return self.flightstate, self.aircraftp, [self.E_used >= self.aircraftp.prop_perf['P']*self.t]
 
 class Mission(Model):
 	def setup(self, aircraft):
 		with Vectorize(4):
 			self.fs = FlightSegment(aircraft)
+		E_used = self.fs['E_used']
 		self.Vmax = self.fs['V'][3]
-		return self.fs
+		return self.fs, [
+		aircraft.battery['E'] >= sum(E for E in E_used),
+		self.fs.t >= Variable('tlim',10,'s')]
 
 ac = Aircraft()
 mission = Mission(ac)
